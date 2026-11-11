@@ -10,3 +10,5 @@ Per compilare Hello World uso: javac -encoding UTF-8 es01a-hello-world/HelloSock
 Per eseguirlo uso: java -cp es01a-hello-world HelloSocket
 La sottocartella tmp contiene file temporanei e viene esclusa da Git.
 I sorgenti .java sono versionati; i file compilati .class vengono rigenerati.
+
+Ho clonato il repository e verificato il programma sul Mac di casa.
