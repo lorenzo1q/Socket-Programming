@@ -1,0 +1,408 @@
+[1mdiff --git a/.gitignore b/.gitignore[m
+[1mnew file mode 100644[m
+[1mindex 0000000..0e32a50[m
+[1m--- /dev/null[m
+[1m+++ b/.gitignore[m
+[36m@@ -0,0 +1,12 @@[m
+[32m+[m[32m/tmp/[m
+[32m+[m[32m*.class[m
+[32m+[m[32m/out/[m
+[32m+[m[32m/build/[m
+[32m+[m[32m/target/[m
+[32m+[m[32m*.log[m
+[32m+[m[32m*.tmp[m
+[32m+[m[32m*.swp[m
+[32m+[m[32m*~[m
+[32m+[m[32m.env[m
+[32m+[m[32m.env.*[m
+[32m+[m[32m!.env.example[m
+[1mdiff --git a/ES04/ClientTask.java b/ES04/ClientTask.java[m
+[1mnew file mode 100644[m
+[1mindex 0000000..2eaf2bc[m
+[1m--- /dev/null[m
+[1m+++ b/ES04/ClientTask.java[m
+[36m@@ -0,0 +1,25 @@[m
+[32m+[m[32mimport java.io.*;[m
+[32m+[m[32mimport java.net.*;[m
+[32m+[m[32mimport java.nio.charset.StandardCharsets;[m
+[32m+[m
+[32m+[m[32m/** Gestore a righe UTF-8: il socket è chiuso automaticamente anche su errore o timeout. */[m
+[32m+[m[32mpublic class ClientTask implements Runnable {[m
+[32m+[m[32m    private final Socket socket;[m
+[32m+[m[32m    public ClientTask(Socket socket) { this.socket = socket; }[m
+[32m+[m
+[32m+[m[32m    @Override[m
+[32m+[m[32m    public void run() {[m
+[32m+[m[32m        try (Socket owned = socket) {[m
+[32m+[m[32m            socket.setSoTimeout(30_000); // Limita le letture di un client inattivo.[m
+[32m+[m[32m            BufferedReader in = new BufferedReader(new InputStreamReader([m
+[32m+[m[32m                    socket.getInputStream(), StandardCharsets.UTF_8));[m
+[32m+[m[32m            PrintWriter out = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8);[m
+[32m+[m[32m            System.out.println("Gestore: " + Thread.currentThread().getName());[m
+[32m+[m[32m            String message = in.readLine();[m
+[32m+[m[32m            if (message == null) return; // EOF senza richiesta: non rispondere al testo "null".[m
+[32m+[m[32m            out.println("Server: Ho ricevuto il tuo messaggio: " + message);[m
+[32m+[m[32m        } catch (IOException e) {[m
+[32m+[m[32m            System.err.println("Errore gestore: " + e.getMessage());[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/ES04/MultiThreadServer.java b/ES04/MultiThreadServer.java[m
+[1mnew file mode 100644[m
+[1mindex 0000000..3f29975[m
+[1m--- /dev/null[m
+[1m+++ b/ES04/MultiThreadServer.java[m
+[36m@@ -0,0 +1,16 @@[m
+[32m+[m[32mimport java.io.*;[m
+[32m+[m[32mimport java.net.*;[m
+[32m+[m[32mimport java.nio.charset.StandardCharsets;[m
+[32m+[m
+[32m+[m[32m/** Listener sulla porta 5000: accetta un socket distinto e lo trasferisce a un Runnable. */[m
+[32m+[m[32mpublic class MultiThreadServer {[m
+[32m+[m[32m    public static void main(String[] args) throws IOException {[m
+[32m+[m[32m        try (ServerSocket listener = new ServerSocket(5000)) {[m
+[32m+[m[32m            System.out.println("Server in ascolto sulla porta 5000");[m
+[32m+[m[32m            while (true) {[m
+[32m+[m[32m                Socket socket = listener.accept(); // Solo questa attesa riguarda il listener.[m
+[32m+[m[32m                new Thread(new ClientTask(socket)).start();[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/ES04/SimpleClient.java b/ES04/SimpleClient.java[m
+[1mnew file mode 100644[m
+[1mindex 0000000..40af11e[m
+[1m--- /dev/null[m
+[1m+++ b/ES04/SimpleClient.java[m
+[36m@@ -0,0 +1,22 @@[m
+[32m+[m[32mimport java.io.*;[m
+[32m+[m[32mimport java.net.*;[m
+[32m+[m[32mimport java.nio.charset.StandardCharsets;[m
+[32m+[m[32mimport java.util.Scanner;[m
+[32m+[m
+[32m+[m[32m/** Client della variante con una sola richiesta: invio e lettura sono a righe UTF-8. */[m
+[32m+[m[32mpublic class SimpleClient {[m
+[32m+[m[32m    public static void main(String[] args) throws IOException {[m
+[32m+[m[32m        try (Socket socket = new Socket("localhost", 5000);[m
+[32m+[m[32m             Scanner keyboard = new Scanner(System.in)) {[m
+[32m+[m[32m            socket.setSoTimeout(30_000);[m
+[32m+[m[32m            PrintWriter out = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8);[m
+[32m+[m[32m            BufferedReader in = new BufferedReader(new InputStreamReader([m
+[32m+[m[32m                    socket.getInputStream(), StandardCharsets.UTF_8));[m
+[32m+[m[32m            System.out.println("Scrivi un messaggio:");[m
+[32m+[m[32m            if (!keyboard.hasNextLine()) return;[m
+[32m+[m[32m            out.println(keyboard.nextLine()); // La newline rende completa la richiesta.[m
+[32m+[m[32m            String response = in.readLine();[m
+[32m+[m[32m            if (response != null) System.out.println("Risposta: " + response);[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/README.md b/README.md[m
+[1mnew file mode 100644[m
+[1mindex 0000000..7154cd7[m
+[1m--- /dev/null[m
+[1m+++ b/README.md[m
+[36m@@ -0,0 +1,12 @@[m
+[32m+[m[32m# Socket Programming[m
+[32m+[m
+[32m+[m[32mEsercitazioni di programmazione socket in Java di Lorenzo Gianazza classe 5F[m
+[32m+[m
+[32m+[m[32mQuesto repository contiene i programmi, gli esercizi e le risorse sui socket in Java.[m
+[32m+[m[32mIl programma dell'esercizio Git e GitHub è es01a-hello-world/HelloSocket.java.[m
+[32m+[m
+[32m+[m[32mSu Web4Student lavoro nella cartella personale ~/socket.[m
+[32m+[m[32mPer compilare Hello World uso: javac -encoding UTF-8 es01a-hello-world/HelloSocket.java[m
+[32m+[m[32mPer eseguirlo uso: java -cp es01a-hello-world HelloSocket[m
+[32m+[m[32mLa sottocartella tmp contiene file temporanei e viene esclusa da Git.[m
+[32m+[m[32mI sorgenti .java sono versionati; i file compilati .class vengono rigenerati.[m
+[1mdiff --git a/TcpClient.java b/TcpClient.java[m
+[1mnew file mode 100644[m
+[1mindex 0000000..c25433b[m
+[1m--- /dev/null[m
+[1m+++ b/TcpClient.java[m
+[36m@@ -0,0 +1,67 @@[m
+[32m+[m[32m/**[m
+[32m+[m[32m * Semplice TCP Client in Java[m
+[32m+[m[32m *[m[41m [m
+[32m+[m[32m * javac TcpClient.java && java TcpClient[m[41m [m
+[32m+[m[32m *[m[41m [m
+[32m+[m[32m * author: Filippo Bilardo[m
+[32m+[m[32m * version: 1.1 - 18/10/25 - aggiunta commenti[m
+[32m+[m[32m */[m
+[32m+[m
+[32m+[m[32mimport java.io.BufferedReader;[m
+[32m+[m[32mimport java.io.DataInputStream;[m
+[32m+[m[32mimport java.io.DataOutputStream;[m
+[32m+[m[32mimport java.io.InputStreamReader;[m
+[32m+[m[32mimport java.net.Socket;[m
+[32m+[m[32m//import java.util.Scanner;[m
+[32m+[m
+[32m+[m[32mpublic class TcpClient {[m
+[32m+[m	[32mpublic static void main(String[] args) throws Exception {[m
+[32m+[m[41m		[m
+[32m+[m		[32mString severAddress="127.0.0.1";  // localhost[m
+[32m+[m		[32mint severPort=8765;[m
+[32m+[m		[32mString clientMsg = "";[m
+[32m+[m		[32mString serverMsg;[m
+[32m+[m[41m		[m
+[32m+[m		[32mtry {[m
+[32m+[m			[32m// Create connection to server socket[m
+[32m+[m			[32mSystem.out.print("Client: Connessione al server=" + severAddress + ":" + severPort + " ... ");[m
+[32m+[m			[32m// Create a socket to connect to the server[m
+[32m+[m			[32mSocket socket = new Socket(severAddress, severPort);[m[41m [m
+[32m+[m			[32mSystem.out.println("Connected");[m
+[32m+[m
+[32m+[m			[32m// Create input and output streams to read/write data[m
+[32m+[m			[32m// Input stream tramite la classe java Scanner per i dati inseriti dall'utente[m[41m [m
+[32m+[m			[32mBufferedReader inUserStream = new BufferedReader(new InputStreamReader(System.in));[m
+[32m+[m			[32m//Scanner scanner = new Scanner(System.in);[m
+[32m+[m			[32m// Input stream per i dati provenienti dal socket[m[41m [m
+[32m+[m			[32mDataInputStream inSocketStream = new DataInputStream(socket.getInputStream());[m
+[32m+[m			[32m// Output stream[m[41m [m
+[32m+[m			[32mDataOutputStream outSocketStream = new DataOutputStream(socket.getOutputStream());[m
+[32m+[m[41m			[m
+[32m+[m			[32mwhile (!clientMsg.equals("quit")) {[m
+[32m+[m				[32m// Prompt user to enter some text or 'quit'[m
+[32m+[m				[32mSystem.out.print("Client gianazza: inserisci il messaggio da inviare> ");[m
+[32m+[m				[32m//clientMsg = scanner.nextLine();[m
+[32m+[m				[32mclientMsg = inUserStream.readLine();[m
+[32m+[m
+[32m+[m				[32m// Send the entered text to server[m
+[32m+[m				[32mSystem.out.println("Client gianazza: invio il messaggio: " + clientMsg);[m
+[32m+[m				[32moutSocketStream.writeUTF(clientMsg);[m
+[32m+[m				[32moutSocketStream.flush();[m
+[32m+[m
+[32m+[m				[32m// Read data from socket input stream[m
+[32m+[m				[32mserverMsg = inSocketStream.readUTF();[m
+[32m+[m				[32mSystem.out.println("Client gianazza: ricevuto il messaggio: " + serverMsg);[m
+[32m+[m			[32m}[m
+[32m+[m
+[32m+[m			[32m// Close resources[m
+[32m+[m			[32moutSocketStream.close();[m
+[32m+[m			[32minSocketStream.close();[m
+[32m+[m			[32minUserStream.close();[m
+[32m+[m			[32msocket.close();[m
+[32m+[m			[32m//scanner.close();[m[41m			[m
+[32m+[m		[32m} catch (Exception e) {[m
+[32m+[m			[32mSystem.out.println(e);[m
+[32m+[m		[32m}[m
+[32m+[m	[32m}[m
+[32m+[m[32m}[m
+[1mdiff --git a/TcpServer.java b/TcpServer.java[m
+[1mnew file mode 100644[m
+[1mindex 0000000..7faa116[m
+[1m--- /dev/null[m
+[1m+++ b/TcpServer.java[m
+[36m@@ -0,0 +1,55 @@[m
+[32m+[m[32m/**[m
+[32m+[m[32m * Semplice TCP Server in Java[m
+[32m+[m[32m *[m
+[32m+[m[32m * javac TcpServer.java && java TcpServer[m
+[32m+[m[32m *[m[41m [m
+[32m+[m[32m * author: Filippo Bilardo[m
+[32m+[m[32m * version: 1.1 - 18/10/25 - aggiunta commenti[m
+[32m+[m[32m */[m
+[32m+[m
+[32m+[m[32mimport java.io.DataInputStream;[m
+[32m+[m[32mimport java.io.DataOutputStream;[m
+[32m+[m[32mimport java.net.ServerSocket;[m
+[32m+[m[32mimport java.net.Socket;[m
+[32m+[m
+[32m+[m[32mpublic class TcpServer {[m
+[32m+[m	[32mpublic static void main(String[] args) throws Exception {[m
+[32m+[m[41m		[m
+[32m+[m		[32mint severPort=8765;[m
+[32m+[m		[32mString clientMsg = "";[m
+[32m+[m[41m		[m
+[32m+[m		[32mtry {[m[41m			 [m
+[32m+[m			[32m// Creazione del socket sul server e ascolto sulla porta[m
+[32m+[m			[32mServerSocket serverSocket = new ServerSocket(severPort);[m
+[32m+[m			[32mSystem.out.println("Server: in ascolto sulla porta " + severPort);[m
+[32m+[m
+[32m+[m			[32m// Attesa della connessione con il client[m
+[32m+[m			[32mSocket clientSocket = serverSocket.accept();[m
+[32m+[m[41m			[m
+[32m+[m			[32m// Create input and output streams to read/write data[m
+[32m+[m			[32mDataInputStream inStream = new DataInputStream(clientSocket.getInputStream());[m
+[32m+[m			[32mDataOutputStream outStream = new DataOutputStream(clientSocket.getOutputStream());[m[41m	[m
+[32m+[m
+[32m+[m			[32m// Scambio di dati tra client e server[m
+[32m+[m			[32mwhile(!clientMsg.equals("quit")) {[m
+[32m+[m				[32m//Lettura dato da stream di rete[m
+[32m+[m				[32mclientMsg = inStream.readUTF();[m
+[32m+[m				[32mSystem.out.println("Server: ricevuto messaggio " + clientMsg );[m
+[32m+[m[41m				[m
+[32m+[m				[32m//Invio dati su stream di rete[m
+[32m+[m				[32moutStream.writeUTF("Echo from server : "         + clientMsg);[m
+[32m+[m				[32moutStream.flush();[m
+[32m+[m				[32mSystem.out.println("Server gianazza: invio messaggio "    + clientMsg );[m
+[32m+[m			[32m}[m
+[32m+[m
+[32m+[m			[32m// Close resources[m
+[32m+[m			[32mserverSocket.close();[m
+[32m+[m			[32mclientSocket.close();[m
+[32m+[m			[32minStream.close();[m
+[32m+[m			[32moutStream.close();[m
+[32m+[m
+[32m+[m		[32m} catch (Exception e) {[m
+[32m+[m			[32mSystem.out.println(e);[m
+[32m+[m		[32m}[m
+[32m+[m	[32m}[m
+[32m+[m[32m}[m
+[1mdiff --git a/client.py b/client.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..f30b9d4[m
+[1m--- /dev/null[m
+[1m+++ b/client.py[m
+[36m@@ -0,0 +1,36 @@[m
+[32m+[m[32m# Esempio 02: Client TCP Semplice in Python[m
+[32m+[m[32m# Questo programma implementa un client TCP che si connette a un server,[m
+[32m+[m[32m# invia un messaggio e riceve una risposta.[m[41m [m
+[32m+[m[32m# (c) Filippo Bilardo[m
+[32m+[m[32m# versione 1.0 - 19/09/26 - versione iniziale[m
+[32m+[m
+[32m+[m[32mimport socket  # Modulo per la programmazione socket[m
+[32m+[m
+[32m+[m[32m# 1. Creazione del socket TCP per il client[m
+[32m+[m[32m# AF_INET: Per indirizzi IPv4[m
+[32m+[m[32m# SOCK_STREAM: Per connessione TCP affidabile[m
+[32m+[m[32mclient_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)[m
+[32m+[m
+[32m+[m[32m# 2. Connessione al server[m
+[32m+[m[32m# Specifica l'indirizzo IP (o hostname) e la porta del server[m
+[32m+[m[32mserver_address = ('localhost', 2208)[m
+[32m+[m[32mclient_socket.connect(server_address)[m
+[32m+[m[32mprint("Connessione al server stabilita con successo")[m
+[32m+[m
+[32m+[m[32m# 3. Invio di un messaggio al server[m
+[32m+[m[32m# send() richiede dati in formato bytes, quindi codifichiamo la stringa[m
+[32m+[m[32mmessage = "Hello, Server gianazza!"[m
+[32m+[m[32mclient_socket.send(message.encode())[m
+[32m+[m[32m#client_socket.send(b"Hello, Server!")[m
+[32m+[m[32mprint(f"Messaggio inviato al server: {message}")[m
+[32m+[m
+[32m+[m[32m# 4. Ricezione della risposta dal server[m
+[32m+[m[32m# recv() riceve fino a 1024 byte; se la risposta è più lunga, potrebbe richiedere multiple chiamate[m
+[32m+[m[32mresponse = client_socket.recv(1024)[m
+[32m+[m[32mprint(f"Risposta ricevuta dal server: {response.decode()}")[m
+[32m+[m[32m#print(f"Received from server: {response}")[m
+[32m+[m
+[32m+[m[32m# 5. Chiusura della connessione[m
+[32m+[m[32m# È essenziale chiudere il socket per liberare risorse di rete[m
+[32m+[m[32mclient_socket.close()[m
+[32m+[m[32mprint("Connessione chiusa")[m
+[1mdiff --git a/es01a-hello-world/HelloSocket.java b/es01a-hello-world/HelloSocket.java[m
+[1mnew file mode 100644[m
+[1mindex 0000000..193f2b2[m
+[1m--- /dev/null[m
+[1m+++ b/es01a-hello-world/HelloSocket.java[m
+[36m@@ -0,0 +1,11 @@[m
+[32m+[m[32mpublic class HelloSocket {[m
+[32m+[m[32m    public static void main(String[] args) {[m
+[32m+[m[32m        String nome = "Mario";[m
+[32m+[m[32m        String messaggio = "Hello World dell'esercizio a.";[m
+[32m+[m
+[32m+[m[32m        System.out.println("Hello, World!");[m
+[32m+[m[32m        System.out.println("Studente: " + nome);[m
+[32m+[m[32m        System.out.println(messaggio);[m
+[32m+[m[32m        System.out.println("PID del processo: " + ProcessHandle.current().pid());[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/server.py b/server.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..aee29a0[m
+[1m--- /dev/null[m
+[1m+++ b/server.py[m
+[36m@@ -0,0 +1,43 @@[m
+[32m+[m[32m# Esempio 01: Server TCP Semplice in Python[m
+[32m+[m[32m# Questo programma implementa un server TCP di base che accetta connessioni,[m
+[32m+[m[32m# riceve dati dal client, e risponde con un messaggio fisso.[m[41m [m
+[32m+[m[32m# (c) Filippo Bilardo[m
+[32m+[m[32m# versione 1.0 - 19/09/26 - versione iniziale[m
+[32m+[m
+[32m+[m[32mimport socket  # Modulo per la programmazione socket in Python[m
+[32m+[m
+[32m+[m[32m# 1. Creazione del socket TCP[m
+[32m+[m[32m# AF_INET: Famiglia di indirizzi IPv4[m
+[32m+[m[32m# SOCK_STREAM: Tipo di socket per TCP (flusso affidabile)[m
+[32m+[m[32mserver_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)[m
+[32m+[m
+[32m+[m[32m# 2. Associazione del socket a un indirizzo e porta (binding)[m
+[32m+[m[32m# 'localhost' significa che il server ascolterà solo su questa macchina[m
+[32m+[m[32m# 12345 è la porta su cui il server sarà disponibile[m
+[32m+[m[32mserver_socket.bind(('localhost', 2204))[m
+[32m+[m
+[32m+[m[32m# 3. Il server inizia ad ascoltare le connessioni in entrata[m
+[32m+[m[32m# Il parametro 5 indica il numero massimo di connessioni in coda[m
+[32m+[m[32mserver_socket.listen(5)[m
+[32m+[m[32mprint("Server in ascolto su porta 2204...")[m
+[32m+[m
+[32m+[m[32m# 4. Ciclo infinito per accettare e gestire connessioni multiple[m
+[32m+[m[32mwhile True:[m
+[32m+[m[32m    # accept() blocca l'esecuzione fino a quando un client si connette[m
+[32m+[m[32m    # Restituisce un nuovo socket per la comunicazione e l'indirizzo del client[m
+[32m+[m[32m    client_socket, client_address = server_socket.accept()[m
+[32m+[m[32m    print(f"Connessione stabilita con il client: {client_address}")[m
+[32m+[m
+[32m+[m[32m    # 4a. Ricezione dei dati dal client[m
+[32m+[m[32m    # recv(1024) riceve fino a 1024 byte di dati[m
+[32m+[m[32m    # Se non ci sono dati, recv() restituisce una stringa vuota[m
+[32m+[m[32m    data = client_socket.recv(1024)[m
+[32m+[m[32m    print(f"Dati ricevuti dal client: {data.decode()}")[m
+[32m+[m
+[32m+[m[32m    # 4b. Invio di una risposta al client[m
+[32m+[m[32m    # send() richiede dati in formato bytes, quindi usiamo una stringa byte[m
+[32m+[m[32m    client_socket.send(b"Hello from server gianazza!")[m
+[32m+[m
+[32m+[m[32m    # 4c. Chiusura della connessione con il client[m
+[32m+[m[32m    # È importante chiudere il socket per liberare risorse[m
+[32m+[m[32m    client_socket.close()[m
+[1mdiff --git a/server01.py b/server01.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..19dc584[m
+[1m--- /dev/null[m
+[1m+++ b/server01.py[m
+[36m@@ -0,0 +1,43 @@[m
+[32m+[m[32m# Esempio 01: Server TCP Semplice in Python[m
+[32m+[m[32m# Questo programma implementa un server TCP di base che accetta connessioni,[m
+[32m+[m[32m# riceve dati dal client, e risponde con un messaggio fisso.[m[41m [m
+[32m+[m[32m# (c) Filippo Bilardo[m
+[32m+[m[32m# versione 1.0 - 19/09/26 - versione iniziale[m
+[32m+[m
+[32m+[m[32mimport socket  # Modulo per la programmazione socket in Python[m
+[32m+[m
+[32m+[m[32m# 1. Creazione del socket TCP[m
+[32m+[m[32m# AF_INET: Famiglia di indirizzi IPv4[m
+[32m+[m[32m# SOCK_STREAM: Tipo di socket per TCP (flusso affidabile)[m
+[32m+[m[32mserver_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)[m
+[32m+[m
+[32m+[m[32m# 2. Associazione del socket a un indirizzo e porta (binding)[m
+[32m+[m[32m# 'localhost' significa che il server ascolterà solo su questa macchina[m
+[32m+[m[32m# 12345 è la porta su cui il server sarà disponibile[m
+[32m+[m[32mserver_socket.bind(('localhost', 22345))[m
+[32m+[m
+[32m+[m[32m# 3. Il server inizia ad ascoltare le connessioni in entrata[m
+[32m+[m[32m# Il parametro 5 indica il numero massimo di connessioni in coda[m
+[32m+[m[32mserver_socket.listen(5)[m
+[32m+[m[32mprint("Server in ascolto su porta 12345...")[m
+[32m+[m
+[32m+[m[32m# 4. Ciclo infinito per accettare e gestire connessioni multiple[m
+[32m+[m[32mwhile True:[m
+[32m+[m[32m    # accept() blocca l'esecuzione fino a quando un client si connette[m
+[32m+[m[32m    # Restituisce un nuovo socket per la comunicazione e l'indirizzo del client[m
+[32m+[m[32m    client_socket, client_address = server_socket.accept()[m
+[32m+[m[32m    print(f"Connessione stabilita con il client: {client_address}")[m
+[32m+[m
+[32m+[m[32m    # 4a. Ricezione dei dati dal client[m
+[32m+[m[32m    # recv(1024) riceve fino a 1024 byte di dati[m
+[32m+[m[32m    # Se non ci sono dati, recv() restituisce una stringa vuota[m
+[32m+[m[32m    data = client_socket.recv(1024)[m
+[32m+[m[32m    print(f"Dati ricevuti dal client: {data.decode()}")[m
+[32m+[m
+[32m+[m[32m    # 4b. Invio di una risposta al client[m
+[32m+[m[32m    # send() richiede dati in formato bytes, quindi usiamo una stringa byte[m
+[32m+[m[32m    client_socket.send(b"Hello from server!")[m
+[32m+[m
+[32m+[m[32m    # 4c. Chiusura della connessione con il client[m
+[32m+[m[32m    # È importante chiudere il socket per liberare risorse[m
+[32m+[m[32m    client_socket.close([m
