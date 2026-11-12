@@ -6,7 +6,7 @@ import java.util.Scanner;
 /** Client della variante con una sola richiesta: invio e lettura sono a righe UTF-8. */
 public class SimpleClient {
     public static void main(String[] args) throws IOException {
-        try (Socket socket = new Socket("localhost", 5000);
+        try (Socket socket = new Socket("localhost", 5004);
              Scanner keyboard = new Scanner(System.in)) {
             socket.setSoTimeout(30_000);
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8);
